@@ -7,6 +7,7 @@ const cartBody = document.getElementById("cartBody");
 const cartTotalEl = document.getElementById("cartTotal");
 const productForm = document.getElementById("productForm");
 const checkoutBtn = document.getElementById("checkoutBtn");
+const clearCartBtn = document.getElementById("clearCartBtn");
 const toast = document.getElementById("toast");
 const apiDot = document.getElementById("apiDot");
 const apiStatusText = document.getElementById("apiStatusText");
@@ -200,6 +201,23 @@ async function checkout() {
   }
 }
 
+async function clearCart() {
+  try {
+    if (!confirm("Are you sure you want to clear the cart?")) {
+      return;
+    }
+
+    const result = await apiFetch("/api/delete", {
+      method: "DELETE",
+    });
+
+    showToast(result.message);
+    await loadCart();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
 productForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("productName").value.trim();
@@ -220,6 +238,8 @@ productForm.addEventListener("submit", async (e) => {
 });
 
 checkoutBtn.addEventListener("click", checkout);
+
+clearCartBtn.addEventListener("click", clearCart);
 
 (async function init() {
   await checkApiHealth();

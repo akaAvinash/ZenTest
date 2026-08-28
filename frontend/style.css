@@ -249,3 +249,16 @@ button:disabled {
 .toast.success {
   border-color: var(--success);
 }
+
+.cart-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.clear-cart-btn {
+  background: var(--danger);
+}
+
+.clear-cart-btn:hover {
+  background: var(--danger-hover);
+}

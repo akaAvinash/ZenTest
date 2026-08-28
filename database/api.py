@@ -331,3 +331,19 @@ def checkout():
     return {
         "message": "Checkout successful. Cart cleared."
     }
+
+@app.delete("/api/delete")
+def clear_cart():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        DELETE from inventory_items
+        """
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {"message": "Cart Cleared Successfully."}
