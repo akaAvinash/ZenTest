@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .database import get_connection, init_db
@@ -8,6 +9,14 @@ app = FastAPI(
     title="Inventory & Cart API",
     description="Simple API for inventory, cart, and checkout operations",
     version="1.0.0",
+)
+
+# Allow the static frontend (served from any local origin) to call this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
