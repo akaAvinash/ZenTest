@@ -27,3 +27,33 @@ class ProductsPage(BasePage):
         row = self.product_row(name)
         row.locator(".qty-input").fill(quantity)
         row.locator(".add-cart-btn").click()
+        # Wait for this add's async cycle to settle before returning —
+        # either a cart row for this product appears (success), or the
+        # toast shows an error (rejection, e.g. over-stock), whichever
+        # happens first. Two failure modes this avoids:
+        #  - Chaining a second add_to_cart() for a *different* product
+        #    right after this one can otherwise race this call's in-flight
+        #    products-table rebuild (loadProducts() replaces every row
+        #    with a fresh element, qty-input reset to "1"); if that lands
+        #    between the next call's .fill(quantity) and .click(), the
+        #    typed quantity is silently lost.
+        #  - Waiting a fixed timeout for the cart row alone burns that
+        #    whole timeout on a *rejected* add (no row ever appears),
+        #    which previously ate into the toast's ~2.5s auto-dismiss
+        #    window and made it disappear before a test could assert on
+        #    it. Racing both conditions resolves as soon as either is
+        #    true, so it never wastes time either way.
+        try:
+            self.page.wait_for_function(
+                """(name) => {
+                    const rows = document.querySelectorAll('#cartBody tr');
+                    const hasRow = Array.from(rows).some((r) => r.textContent.includes(name));
+                    const toast = document.getElementById('toast');
+                    const hasError = !!toast && toast.classList.contains('show') && toast.classList.contains('error');
+                    return hasRow || hasError;
+                }""",
+                arg=name,
+                timeout=3000,
+            )
+        except Exception:
+            pass
