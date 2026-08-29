@@ -28,7 +28,12 @@ pipeline {
             steps {
                 sh '''
                     pip install --no-cache-dir -r requirements.txt
-                    pip install --no-cache-dir pytest pytest-playwright pytest-html requests
+                    # playwright is pinned to match the Docker image's tag (v1.48.0-jammy),
+                    # which ships browser binaries baked in for that exact Playwright
+                    # version. Without the pin, pip grabs the latest playwright package,
+                    # whose client expects browsers this older image doesn't have —
+                    # "BrowserType.launch: Executable doesn't exist" at test time.
+                    pip install --no-cache-dir pytest pytest-playwright pytest-html requests "playwright==1.48.0"
                 '''
             }
         }
