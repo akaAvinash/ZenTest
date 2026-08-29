@@ -11,11 +11,19 @@ API_URL = os.environ.get("API_URL", "https://zentest-sael.onrender.com")
 REPORT_BASE_DIRECTORY = "reports"
 
 
-def generate_report() -> str:
+def generate_report(module: str = "zentest") -> str:
     """
     Builds a unique report dir path with a timestamp.
     File path - /reports/filename
-    Report sample format - zentest_report_20260829_161530
+    Report sample format - api_test_20260829_161530_482913
+
+    Includes microseconds (not just seconds) because two `cli.py --start`
+    invocations back-to-back in the same CI pipeline (e.g. API tests then UI
+    tests) can both compute their timestamp within the same wall-clock
+    second — with second-only precision they'd collide on the same folder
+    name and the second run's report/log would silently overwrite the
+    first's. The module name is included too so folders stay identifiable
+    even in the unlikely event two runs still collide.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return os.path.join(REPORT_BASE_DIRECTORY, f"zentest_report_{timestamp}")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    return os.path.join(REPORT_BASE_DIRECTORY, f"{module}_{timestamp}")

@@ -71,11 +71,22 @@ pipeline {
                 sh 'python cli.py -m ui_test --start'
             }
         }
+
+        stage('Run Database Tests') {
+            steps {
+                sh 'python cli.py -m db_test --start'
+            }
+        }
     }
 
     post {
         always {
             archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+            // Native Jenkins test-trend dashboard: reads every stage's
+            // junit.xml (each report_dir now unique per stage/module —
+            // see utils/config.py) and aggregates pass/fail history across
+            // builds on the job's own page, no extra infra needed.
+            junit testResults: 'reports/**/junit.xml', allowEmptyResults: true
             sh '''
                 pkill -f uvicorn || true
                 pkill -f http.server || true

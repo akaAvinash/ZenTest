@@ -27,9 +27,10 @@ def list_tests(module: str, smoke: bool):
     sys.exit(result.returncode)
 
 def run_tests(module: str, smoke: bool):
-    report_dir = generate_report()
+    report_dir = generate_report(module)
     os.makedirs(report_dir, exist_ok=True)
     report_path = f"{report_dir}/zentest_report.html"
+    junit_path = f"{report_dir}/junit.xml"
     artifacts_dir = f"{report_dir}/artifacts"
 
     # Route this run's logs (this process and the pytest subprocess it
@@ -42,6 +43,7 @@ def run_tests(module: str, smoke: bool):
            "pytest",
            f"--html={report_path}",
            "--self-contained-html",
+           f"--junitxml={junit_path}",  # feeds Jenkins' native junit step for the test-trend dashboard
            "--screenshot=only-on-failure",
            "--video=retain-on-failure",
            f"--output={artifacts_dir}",  # pytest-playwright: where screenshots/videos land
