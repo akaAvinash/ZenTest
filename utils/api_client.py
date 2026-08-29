@@ -10,6 +10,10 @@ class ApiClient:
     def __init__(self, base_url: str = API_URL):
         self.base_url = base_url
 
+    # Health
+    def health(self):
+        return requests.get(f"{self.base_url}/api/health")
+
     # Products
     def get_products(self):
         return requests.get(f"{self.base_url}/api/products")
@@ -22,6 +26,12 @@ class ApiClient:
             f"{self.base_url}/api/products",
             json={"name": name, "price": price, "stock": stock},
         )
+
+    def create_product_raw(self, payload: dict):
+        """Like create_product, but sends an arbitrary payload as-is — for
+        negative tests needing a shape the typed method can't express
+        (e.g. omitting a field entirely rather than passing an odd value)."""
+        return requests.post(f"{self.base_url}/api/products", json=payload)
 
     # Cart
     def add_to_cart(self, product_id: int, quantity: int):

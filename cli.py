@@ -9,6 +9,7 @@ from utils.logger import get_logger
 MODULE_MAP = {
     "ui_test": "tests/ui_tests/tests",
     "api_test": "tests/api_tests/tests",
+    "db_test": "tests/db_tests/tests",
 }
 
 def build_pytest_args(module: str, smoke: bool) -> list[str]:

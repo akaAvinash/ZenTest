@@ -1,10 +1,10 @@
 # ZenTest — Inventory & Cart
 
 A small FastAPI backend (products, cart, checkout) backed by SQLite, with a
-plain HTML/CSS/JS frontend on top of it, plus a Playwright UI test suite and
-a small CLI to run it. No frameworks or build step on the frontend — FastAPI
-serves the static frontend directly, so the whole app is a single process,
-locally and in production.
+plain HTML/CSS/JS frontend on top of it, plus four test suites (UI, API,
+database, load) and a small CLI to run them. No frameworks or build step on
+the frontend — FastAPI serves the static frontend directly, so the whole
+app is a single process, locally and in production.
 
 ## Status
 
@@ -14,18 +14,22 @@ locally and in production.
   served from a single FastAPI process (one port, no CORS juggling).
 - **Deployment:** live at https://zentest-sael.onrender.com as a single
   Render web service (see `render.yaml` and the Deployment section below).
-- **Test suite:** 3 automated Playwright UI tests passing (`test_api_status`,
-  `test_new_product_appears_in_list`, `test_add_to_cart_shows_correct_total`),
+- **Test suites:** 56 automated pytest tests passing — 17 Playwright UI
+  tests, 20 API tests (via `ApiClient`), 19 direct-SQLite database tests —
   runnable via `pytest` directly or through `cli.py`, with self-contained
-  HTML report generation.
-- **Manual test cases:** 20 documented UI test cases covering the full
-  frontend (product management, cart operations, validation/edge cases,
-  empty states, the Clear Cart confirmation dialog, and toast feedback) —
-  only 3 are automated so far.
-- Known limitation: automated tests share the same `inventory.db` used for
-  manual/dev testing rather than a dedicated disposable test database, so
-  test-created products accumulate in it over time (test names are
-  UUID-suffixed specifically to avoid collisions from this).
+  HTML report generation. Plus 7 k6 load test scripts (read, write,
+  concurrent product creation, stock-limit correctness under contention,
+  mixed traffic, checkout race, invalid payloads at volume).
+- **Manual test cases:** 20 documented cases each for UI, API, database,
+  and load testing (see the generated PDFs) — every pytest suite now
+  automates its full 20, and 7 of the 20 load cases are automated as k6
+  scripts (the rest are CLI-flag variations of those scripts or one-off
+  verification steps — see `TESTING.md`).
+- Known limitation: `ui_tests`/`api_tests` share the same `inventory.db`
+  used for manual/dev testing rather than a dedicated disposable test
+  database, so test-created products accumulate in it over time (test names
+  are UUID-suffixed to avoid collisions from this). `db_tests` cleans up
+  after itself since it has direct DB access.
 
 ## Project structure
 
@@ -38,37 +42,46 @@ frontend/
   style.css               Styling
   app.js                  Talks to the API (fetch), renders products & cart
 utils/
-  logger.py                Framework-wide logger (backend, CLI, and tests all use this)
-config/
-  report_config.py          CLI's report-path helper (reports/zentest_report_<timestamp>)
-tests/UI_tests/
-  config.py                FRONTEND_URL / API_URL used by the tests
-  conftest.py                Autouse fixture that clears the cart before/after each test
-  pytest.ini                  Registers the "smoke" marker
-  pages/                      Page objects (one class per page/section)
-    base_page.py
-    home_page.py
-    products_page.py
-    cart_page.py
-  utils/
-    api_helper.py             Direct API calls used to seed/clean test data
-  tests/
-    test_home_ui.py            API status indicator (smoke)
-    test_products.py            Add product flow
-    test_cart.py                 Add to cart / cart total flow
-cli.py                    ZenTest CLI: list/run UI tests, generate HTML reports
+  logger.py                Framework-wide logger (backend, CLI, and all tests use this)
+  config.py                 FRONTEND_URL / API_URL / report-path helper
+  api_client.py               One method per backend endpoint (ApiClient) — the single
+                               place that knows every URL/method/payload shape
+  api_helper.py                 Thin convenience layer on top of ApiClient (used by fixtures)
+  ocr_helper.py                   Wraps pytesseract — OCR on images/screenshots, for content
+                                   a DOM selector can't reach
+conftest.py                Root autouse fixture (cart reset) + pass/fail logging hook —
+                            shared by ui_tests, api_tests, and db_tests
+pytest.ini                 Registers the "smoke" marker
+tests/
+  ui_tests/
+    pages/                    Page objects (one class per page/section)
+      base_page.py
+      home_page.py
+      products_page.py
+      cart_page.py
+    tests/
+      test_home_ui.py            API status indicator (smoke)
+      test_products.py            Product list, currency format, out-of-stock state
+      test_cart.py                 Cart totals, merging, removal, checkout, toasts
+      test_clear_cart.py            Clear Cart confirm/cancel dialog
+  api_tests/
+    tests/
+      test_health_api.py           Health check
+      test_products_api.py         Products CRUD + validation edge cases
+      test_cart_api.py              Cart/checkout happy paths + validation + 404s
+  db_tests/
+    conftest.py                  Opts out of the root's HTTP-based cart-reset fixture
+    tests/
+      test_database.py             Schema, constraints, joins, connections (19 tests)
+  load_tests/
+    scripts/                     7 k6 scripts — read/write throughput, concurrent
+                                   product creation, stock-limit correctness under
+                                   contention, mixed traffic, checkout race, invalid
+                                   payloads at volume
+cli.py                    ZenTest CLI: list/run pytest suites, generate HTML reports
 render.yaml                Render deployment config (single web service)
 requirements.txt           Backend dependencies (fastapi, uvicorn)
 ```
-
-Note: there are two separate `utils/` and `config/` locations — the ones at
-the repo root are framework-wide (usable from the backend, the CLI, and the
-test suite alike), while the ones under `tests/UI_tests/` are specific to
-that test suite (API helpers, target URLs). `utils` works from both without
-collision since Python merges same-named packages found in different
-locations (neither has an `__init__.py`); `config` doesn't merge the same
-way, so `tests/UI_tests/config.py` intentionally takes priority within the
-test suite over the root `config/` package.
 
 ## Running locally
 
@@ -125,23 +138,29 @@ disk or switch to a hosted database.
 
 ## Running the tests
 
-`tests/UI_tests/config.py` points `FRONTEND_URL`/`API_URL` at the deployed
-Render app by default, so tests run against the live site — no local server
-needed. (Point both back at `http://127.0.0.1:8000` if you want to test
-against a local run instead.)
+`utils/config.py` points `FRONTEND_URL`/`API_URL` at the deployed Render
+app by default, so `ui_tests`/`api_tests` run against the live site — no
+local server needed. `db_tests` always runs against a local `inventory.db`
+(it talks to SQLite directly, not over HTTP) and `load_tests` defaults to a
+local server too (don't point sustained k6 load at the free-tier Render
+deployment).
 
 ```bash
-pip install pytest pytest-playwright pytest-html requests
+pip install pytest pytest-playwright pytest-html requests pytesseract
 playwright install chromium
 
-# via pytest directly
+# via pytest directly — runs ui_tests + api_tests + db_tests
 pytest --browser chromium
 
 # via the CLI (also generates a self-contained HTML report under reports/)
-python cli.py -m ui_test              # list all UI tests
-python cli.py -m ui_test --smoke      # list only smoke-marked tests
-python cli.py -m ui_test --start      # run all UI tests, generate report
-python cli.py -m ui_test --smoke --start   # run smoke tests, generate report
+python cli.py -m ui_test --start           # run UI tests, generate report
+python cli.py -m api_test --start          # run API tests, generate report
+python cli.py -m db_test --start           # run database tests, generate report
+python cli.py -m ui_test --smoke --start   # run smoke-marked UI tests, generate report
+
+# load tests (k6, separate from pytest) — see TESTING.md for the full list
+k6 run tests/load_tests/scripts/products_read_load.js
+k6 run tests/load_tests/scripts/cart_stock_limit_load.js
 ```
 
 Render's free tier spins down after 15 minutes idle, so the first test run
@@ -150,15 +169,16 @@ after a period of inactivity may take 30–60s longer while it wakes back up.
 ## Logging
 
 `utils/logger.py` provides a shared `get_logger(name)` used across the
-backend, the CLI, and the test suite (page objects, API helpers, fixtures).
-Where the log file ends up depends on how things are run:
+backend, the CLI, and all three pytest suites (page objects, API helpers,
+fixtures). Where the log file ends up depends on how things are run:
 
-- `python cli.py -m ui_test --start` (or `--smoke --start`): each run's log
-  is written to `reports/zentest_report_<timestamp>/zentest.log`, right
+- `python cli.py -m <ui_test|api_test|db_test> --start`: each run's log is
+  written to `reports/zentest_report_<timestamp>/zentest.log`, right
   alongside that run's `zentest_report.html` — so a report folder is fully
   self-contained (HTML report + screenshots/videos + logs).
 - Anything else — the backend running standalone, or `pytest` run directly
   without the CLI — falls back to `logs/zentest.log` at the repo root.
 
-See `TESTING.md` (local only, not committed) for full setup details,
-troubleshooting, and what each test covers.
+See `TESTING.md` and `HISTORY.md` (local only, not committed) for full
+setup details, troubleshooting, and the stage-by-stage story of how this
+framework got built.
