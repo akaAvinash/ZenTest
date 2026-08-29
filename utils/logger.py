@@ -1,6 +1,6 @@
 """
 Shared logger for the whole ZenTest framework — the backend (database/api.py),
-the CLI (cli.py), and the UI test suite (tests/UI_tests/) all import this
+the CLI (cli.py), and the UI test suite (tests/ui_tests/) all import this
 same module so log output is consistent everywhere.
 
 Where the log file goes:

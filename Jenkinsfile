@@ -1,8 +1,16 @@
 pipeline {
     agent {
         docker {
+            // No --network host: the app and the tests both run inside
+            // this same container, so they only ever need to talk to each
+            // other over the container's own loopback. --network host
+            // shares the *Jenkins host's* network namespace instead, and
+            // on a shared host that already has something bound to
+            // 127.0.0.1:8000, that means "our" port 8000 is actually
+            // someone else's service — which is exactly what happened
+            // here (every request came back 401 from an unrelated app).
             image 'mcr.microsoft.com/playwright/python:v1.48.0-jammy'
-            args '--network host -u root'
+            args '-u root'
         }
     }
 

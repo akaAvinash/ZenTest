@@ -23,7 +23,8 @@ def list_tests(module: str, smoke: bool):
     logger = get_logger(__name__)
     args = ["pytest", "--collect-only", "-q"] + build_pytest_args(module, smoke)
     logger.debug("Listing %s tests (smoke=%s): %s", module, smoke, " ".join(args))
-    subprocess.run(args)
+    result = subprocess.run(args)
+    sys.exit(result.returncode)
 
 def run_tests(module: str, smoke: bool):
     report_dir = generate_report()
@@ -58,6 +59,11 @@ def run_tests(module: str, smoke: bool):
     else:
         logger.info("Run finished successfully. Report: %s", report_path)
         print(f"\nReport: {report_path}")
+
+    # Propagate pytest's exit code — without this, cli.py always exits 0
+    # regardless of test outcome, and CI would report every run as green
+    # no matter how many tests actually failed.
+    sys.exit(result.returncode)
 
 def main():
     parser = argparse.ArgumentParser(description="ZenTest CLI")
