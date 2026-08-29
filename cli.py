@@ -2,12 +2,13 @@ import argparse
 import os
 import subprocess
 import sys
-from config.report_config import generate_report
+from utils.config import generate_report
 from utils.logger import get_logger
 
 # Maps a "module" name to its test folder.
 MODULE_MAP = {
-    "ui_test": "tests/UI_tests",
+    "ui_test": "tests/ui_tests/tests",
+    "api_test": "tests/api_tests/tests",
 }
 
 def build_pytest_args(module: str, smoke: bool) -> list[str]:

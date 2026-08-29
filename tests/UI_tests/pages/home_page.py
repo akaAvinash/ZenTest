@@ -1,4 +1,4 @@
-from config import FRONTEND_URL
+from utils.config import FRONTEND_URL
 from pages.base_page import BasePage
 
 

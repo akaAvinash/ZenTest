@@ -1,5 +1,5 @@
 from pages.base_page import BasePage
-from config import FRONTEND_URL
+from utils.config import FRONTEND_URL
 
 
 class ProductsPage(BasePage):

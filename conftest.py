@@ -1,13 +1,16 @@
 import sys
 from pathlib import Path
 
-# Make the framework-level utils/ and config/ (repo root) importable from
-# inside the test suite too, alongside tests/UI_tests' own pages/utils/config.
-# Appended (not inserted first) so tests/UI_tests keeps priority for names
-# that exist in both places, e.g. `config` (tests/UI_tests/config.py wins).
-FRAMEWORK_ROOT = Path(__file__).resolve().parents[2]
-if str(FRAMEWORK_ROOT) not in sys.path:
-    sys.path.append(str(FRAMEWORK_ROOT))
+# This conftest.py lives at the repo root, so pytest already puts the root
+# itself on sys.path (letting `utils`, etc. resolve). tests/ui_tests/ still
+# needs to be added explicitly: its pages/*.py use bare imports like
+# `from pages.base_page import ...`, which only resolve if ui_tests/ itself
+# (not just tests/) is on sys.path.
+ROOT = Path(__file__).resolve().parent
+for _subdir in ("tests/ui_tests", "tests/api_tests"):
+    _path = str(ROOT / _subdir)
+    if _path not in sys.path:
+        sys.path.append(_path)
 
 import pytest
 from utils.api_helper import clear_cart
