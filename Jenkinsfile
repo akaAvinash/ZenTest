@@ -24,6 +24,17 @@ pipeline {
     }
 
     stages {
+        stage('Clean previous reports') {
+            steps {
+                // The workspace persists across builds, and reports/ was
+                // never cleared between runs — archiveArtifacts then
+                // re-archived every report from every past build each
+                // time, burying the current run's results in old ones
+                // (including stale screenshots/videos from old failures).
+                sh 'rm -rf reports'
+            }
+        }
+
         stage('Install dependencies') {
             steps {
                 sh '''
