@@ -12,9 +12,8 @@ locally and in production.
   (with stock validation and quantity merging), remove items, checkout, and
   clear the whole cart with a confirmation prompt. Frontend and API are
   served from a single FastAPI process (one port, no CORS juggling).
-- **Deployment:** ready to deploy as a single web service on Render (see
-  `render.yaml` and the Deployment section below). No domain purchase
-  required — Render gives you a free `*.onrender.com` subdomain.
+- **Deployment:** live at https://zentest-sael.onrender.com as a single
+  Render web service (see `render.yaml` and the Deployment section below).
 - **Test suite:** 3 automated Playwright UI tests passing (`test_api_status`,
   `test_new_product_appears_in_list`, `test_add_to_cart_shows_correct_total`),
   runnable via `pytest` directly or through `cli.py`, with self-contained
@@ -100,9 +99,24 @@ gets its own local database). Interactive API docs are at
 - Checkout, which clears the cart
 - A small status indicator shows whether the API is reachable
 
+## Deployment
+
+Live at **https://zentest-sael.onrender.com** — deployed as a single Render
+web service using `render.yaml` (see that file for the build/start
+commands). Pushing to `main` redeploys automatically if the Render service
+is connected to this GitHub repo.
+
+**Known limitation:** the free plan's filesystem is not persistent —
+`inventory.db` resets on every restart or redeploy. That's fine for a demo;
+if you need data to survive restarts, upgrade to a plan with a persistent
+disk or switch to a hosted database.
+
 ## Running the tests
 
-With the server running (`http://127.0.0.1:8000`):
+`tests/UI_tests/config.py` points `FRONTEND_URL`/`API_URL` at the deployed
+Render app by default, so tests run against the live site — no local server
+needed. (Point both back at `http://127.0.0.1:8000` if you want to test
+against a local run instead.)
 
 ```bash
 pip install pytest pytest-playwright pytest-html requests
@@ -118,28 +132,8 @@ python cli.py -m ui_test --start      # run all UI tests, generate report
 python cli.py -m ui_test --smoke --start   # run smoke tests, generate report
 ```
 
+Render's free tier spins down after 15 minutes idle, so the first test run
+after a period of inactivity may take 30–60s longer while it wakes back up.
+
 See `TESTING.md` (local only, not committed) for full setup details,
 troubleshooting, and what each test covers.
-
-## Deployment (Render)
-
-The app deploys as a single free web service — no domain purchase needed,
-Render gives you a `https://<name>.onrender.com` URL.
-
-1. Push this repo to GitHub (already done if you're reading this from the
-   repo).
-2. Go to [render.com](https://render.com) and sign in (GitHub sign-in is
-   the easiest way to connect your repos).
-3. **New +** → **Blueprint**, and select this repo. Render reads
-   `render.yaml` and configures the service automatically (build command,
-   start command, free plan). Alternatively, **New +** → **Web Service**
-   and enter manually:
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `uvicorn database.api:app --host 0.0.0.0 --port $PORT`
-4. Deploy. Render builds and starts the service, and gives you a permanent
-   URL — that's it, no more starting/stopping servers locally.
-
-**Known limitation:** the free plan's filesystem is not persistent —
-`inventory.db` resets on every restart or redeploy. That's fine for a demo;
-if you need data to survive restarts, upgrade to a plan with a persistent
-disk or switch to a hosted database.

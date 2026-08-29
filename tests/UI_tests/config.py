@@ -1,2 +1,2 @@
-FRONTEND_URL = "http://127.0.0.1:8000"
-API_URL = "http://127.0.0.1:8000"
+FRONTEND_URL = "https://zentest-sael.onrender.com"
+API_URL = "https://zentest-sael.onrender.com"
