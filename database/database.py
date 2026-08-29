@@ -1,6 +1,10 @@
 import sqlite3
 
+from utils.logger import get_logger
+
 DB_NAME = "inventory.db"
+
+logger = get_logger(__name__)
 
 
 def get_connection():
@@ -34,7 +38,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-    print("Database Initialized")
+    logger.info("Database initialized (%s)", DB_NAME)
 
 
 if __name__ == "__main__":

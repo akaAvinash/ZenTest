@@ -5,6 +5,7 @@ from pages.base_page import BasePage
 class HomeUi(BasePage):
 
     def goto(self):
+        self.logger.debug("Navigating to %s", FRONTEND_URL)
         self.page.goto(FRONTEND_URL)
 
     def api_status(self, name: "str"):

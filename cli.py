@@ -2,7 +2,8 @@ import argparse
 import os
 import subprocess
 import sys
-from config import generate_report
+from config.report_config import generate_report
+from utils.logger import get_logger
 
 # Maps a "module" name to its test folder.
 MODULE_MAP = {
@@ -17,7 +18,9 @@ def build_pytest_args(module: str, smoke: bool) -> list[str]:
     return args
 
 def list_tests(module: str, smoke: bool):
+    logger = get_logger(__name__)
     args = ["pytest", "--collect-only", "-q"] + build_pytest_args(module, smoke)
+    logger.debug("Listing %s tests (smoke=%s): %s", module, smoke, " ".join(args))
     subprocess.run(args)
 
 def run_tests(module: str, smoke: bool):
@@ -25,6 +28,12 @@ def run_tests(module: str, smoke: bool):
     os.makedirs(report_dir, exist_ok=True)
     report_path = f"{report_dir}/zentest_report.html"
     artifacts_dir = f"{report_dir}/artifacts"
+
+    # Route this run's logs (this process and the pytest subprocess it
+    # spawns below) into the report folder itself, so zentest.log ships
+    # alongside zentest_report.html for every run.
+    os.environ["ZENTEST_LOG_DIR"] = report_dir
+    logger = get_logger(__name__, log_dir=report_dir)
 
     args = [
            "pytest",
@@ -35,10 +44,17 @@ def run_tests(module: str, smoke: bool):
            f"--output={artifacts_dir}",  # pytest-playwright: where screenshots/videos land
        ] + build_pytest_args(module, smoke)
 
+    logger.info("Starting %s run (smoke=%s): %s", module, smoke, " ".join(args))
     result = subprocess.run(args)
+
     if result.returncode != 0 and not os.path.exists(report_path):
+        logger.error("pytest failed before a report could be generated (exit code %s)", result.returncode)
         print(f"\npytest failed before a report could be generated (exit code {result.returncode}).")
+    elif result.returncode != 0:
+        logger.warning("Run finished with failures (exit code %s). Report: %s", result.returncode, report_path)
+        print(f"\nReport: {report_path}")
     else:
+        logger.info("Run finished successfully. Report: %s", report_path)
         print(f"\nReport: {report_path}")
 
 def main():

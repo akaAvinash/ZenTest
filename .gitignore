@@ -30,6 +30,7 @@ htmlcov/
 
 # Logs
 *.log
+logs/
 
 # Generated docs / reports
 TESTING.md

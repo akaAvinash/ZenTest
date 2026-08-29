@@ -37,6 +37,10 @@ frontend/
   index.html              Page layout
   style.css               Styling
   app.js                  Talks to the API (fetch), renders products & cart
+utils/
+  logger.py                Framework-wide logger (backend, CLI, and tests all use this)
+config/
+  report_config.py          CLI's report-path helper (reports/zentest_report_<timestamp>)
 tests/UI_tests/
   config.py                FRONTEND_URL / API_URL used by the tests
   conftest.py                Autouse fixture that clears the cart before/after each test
@@ -53,10 +57,18 @@ tests/UI_tests/
     test_products.py            Add product flow
     test_cart.py                 Add to cart / cart total flow
 cli.py                    ZenTest CLI: list/run UI tests, generate HTML reports
-config.py                  CLI's report-path helper (reports/zentest_report_<timestamp>)
 render.yaml                Render deployment config (single web service)
 requirements.txt           Backend dependencies (fastapi, uvicorn)
 ```
+
+Note: there are two separate `utils/` and `config/` locations — the ones at
+the repo root are framework-wide (usable from the backend, the CLI, and the
+test suite alike), while the ones under `tests/UI_tests/` are specific to
+that test suite (API helpers, target URLs). `utils` works from both without
+collision since Python merges same-named packages found in different
+locations (neither has an `__init__.py`); `config` doesn't merge the same
+way, so `tests/UI_tests/config.py` intentionally takes priority within the
+test suite over the root `config/` package.
 
 ## Running locally
 
@@ -134,6 +146,19 @@ python cli.py -m ui_test --smoke --start   # run smoke tests, generate report
 
 Render's free tier spins down after 15 minutes idle, so the first test run
 after a period of inactivity may take 30–60s longer while it wakes back up.
+
+## Logging
+
+`utils/logger.py` provides a shared `get_logger(name)` used across the
+backend, the CLI, and the test suite (page objects, API helpers, fixtures).
+Where the log file ends up depends on how things are run:
+
+- `python cli.py -m ui_test --start` (or `--smoke --start`): each run's log
+  is written to `reports/zentest_report_<timestamp>/zentest.log`, right
+  alongside that run's `zentest_report.html` — so a report folder is fully
+  self-contained (HTML report + screenshots/videos + logs).
+- Anything else — the backend running standalone, or `pytest` run directly
+  without the CLI — falls back to `logs/zentest.log` at the repo root.
 
 See `TESTING.md` (local only, not committed) for full setup details,
 troubleshooting, and what each test covers.

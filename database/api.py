@@ -6,9 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .database import get_connection, init_db
+from utils.logger import get_logger
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="Inventory & Cart API",
@@ -27,6 +29,7 @@ app.add_middleware(
 
 # Initialize database when application starts
 init_db()
+logger.info("Inventory & Cart API starting up")
 
 # Request Models
 class ProductCreate(BaseModel):
@@ -68,6 +71,8 @@ def create_product(product: ProductCreate):
 
     conn.commit()
     conn.close()
+
+    logger.info("Created product %s: %s", product_id, product.name)
 
     return {
         "message": "Product created successfully",
@@ -116,6 +121,7 @@ def get_product(product_id: int):
     conn.close()
 
     if product is None:
+        logger.warning("Product %s not found", product_id)
         raise HTTPException(
             status_code=404,
             detail="Product not found"
@@ -146,6 +152,7 @@ def add_to_cart(item: AddToCartRequest):
     if product is None:
         conn.close()
 
+        logger.warning("Add to cart failed: product %s not found", item.product_id)
         raise HTTPException(
             status_code=404,
             detail="Product not found"
@@ -156,6 +163,10 @@ def add_to_cart(item: AddToCartRequest):
     if item.quantity > product["stock"]:
         conn.close()
 
+        logger.warning(
+            "Add to cart rejected: product %s requested %s, only %s in stock",
+            item.product_id, item.quantity, product["stock"],
+        )
         raise HTTPException(
             status_code=400,
             detail=f"Only {product['stock']} units available"
@@ -181,6 +192,10 @@ def add_to_cart(item: AddToCartRequest):
         if new_quantity > product["stock"]:
             conn.close()
 
+            logger.warning(
+                "Add to cart rejected: product %s would total %s, only %s in stock",
+                item.product_id, new_quantity, product["stock"],
+            )
             raise HTTPException(
                 status_code=400,
                 detail=f"Only {product['stock']} units available"
@@ -212,6 +227,8 @@ def add_to_cart(item: AddToCartRequest):
 
     conn.commit()
     conn.close()
+
+    logger.info("Added to cart: product %s x%s", item.product_id, item.quantity)
 
     return {
         "message": "Item added to cart",
@@ -277,6 +294,7 @@ def remove_from_cart(product_id: int):
     if item is None:
         conn.close()
 
+        logger.warning("Remove from cart failed: product %s not in cart", product_id)
         raise HTTPException(
             status_code=404,
             detail="Product not found in cart"
@@ -292,6 +310,8 @@ def remove_from_cart(product_id: int):
 
     conn.commit()
     conn.close()
+
+    logger.info("Removed from cart: product %s", product_id)
 
     return {
         "message": "Item removed from cart",
@@ -318,6 +338,7 @@ def checkout():
     if result["count"] == 0:
         conn.close()
 
+        logger.warning("Checkout rejected: cart is empty")
         raise HTTPException(
             status_code=400,
             detail="Cart is empty"
@@ -332,6 +353,8 @@ def checkout():
 
     conn.commit()
     conn.close()
+
+    logger.info("Checkout completed, cart cleared")
 
     return {
         "message": "Checkout successful. Cart cleared."
@@ -350,6 +373,8 @@ def clear_cart():
 
     conn.commit()
     conn.close()
+
+    logger.info("Cart cleared via /api/delete")
 
     return {"message": "Cart Cleared Successfully."}
 
