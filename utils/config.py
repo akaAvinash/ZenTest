@@ -1,9 +1,6 @@
 import os
 from datetime import datetime
 
-# Test target URLs — same origin for both, since FastAPI serves the
-# frontend and API from a single process. Point both at
-# http://127.0.0.1:8000 to test against a local run instead.
 FRONTEND_URL = "https://zentest-sael.onrender.com"
 API_URL = "https://zentest-sael.onrender.com"
 
