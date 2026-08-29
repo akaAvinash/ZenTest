@@ -1,0 +1,80 @@
+// Separate, on-demand pipeline for k6 load tests — deliberately not part
+// of the main Jenkinsfile so a slow/noisy load run never blocks or flakes
+// the UI/API/DB suites that gate every push. Wire this file into its own
+// Jenkins job (e.g. "ZenTest-LoadTests") with no SCM-polling trigger, so
+// it only runs when someone clicks Build Now (or you add a cron schedule
+// later if you want a nightly run).
+pipeline {
+    agent {
+        docker {
+            // Lighter than the Playwright image used by the main
+            // pipeline — load tests only need Python to run the app
+            // itself, not a browser.
+            image 'python:3.11-slim'
+            args '-u root'
+        }
+    }
+
+    environment {
+        BASE_URL = 'http://127.0.0.1:8000'
+    }
+
+    stages {
+        stage('Clean previous reports') {
+            steps {
+                sh 'rm -rf load_test_reports'
+            }
+        }
+
+        stage('Install dependencies') {
+            steps {
+                sh '''
+                    apt-get update -qq
+                    apt-get install -y -qq curl ca-certificates >/dev/null
+                    pip install --no-cache-dir -r requirements.txt
+
+                    # Static k6 binary — no APT repo/keyserver dependency,
+                    # just an HTTPS download of the same tarball a local
+                    # winget/brew install would unpack.
+                    K6_VERSION=v2.2.0
+                    curl -sL "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz" -o k6.tar.gz
+                    tar -xzf k6.tar.gz --strip-components 1 -C /usr/local/bin "k6-${K6_VERSION}-linux-amd64/k6"
+                    chmod +x /usr/local/bin/k6
+                    rm k6.tar.gz
+                    k6 version
+                '''
+            }
+        }
+
+        stage('Start App') {
+            steps {
+                sh '''
+                    nohup python -m uvicorn database.api:app --port 8000 > backend.log 2>&1 &
+                    sleep 3
+                '''
+            }
+        }
+
+        stage('Run Load Tests') {
+            steps {
+                sh '''
+                    mkdir -p load_test_reports
+                    FAILED=0
+                    for script in tests/load_tests/scripts/*.js; do
+                        name=$(basename "$script" .js)
+                        echo "=== Running $name ==="
+                        k6 run "$script" --summary-export="load_test_reports/${name}.json" || FAILED=1
+                    done
+                    exit $FAILED
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'load_test_reports/**', allowEmptyArchive: true
+            sh 'pkill -f uvicorn || true'
+        }
+    }
+}
