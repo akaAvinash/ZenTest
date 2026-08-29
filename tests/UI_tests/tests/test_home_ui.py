@@ -1,5 +1,8 @@
+import pytest
+
 from pages.home_page import HomeUi
 
+@pytest.mark.smoke
 def test_api_status(page):
     home_page = HomeUi(page)
     home_page.goto()
