@@ -23,6 +23,14 @@ pipeline {
         API_URL = 'http://127.0.0.1:8000'
     }
 
+    triggers {
+        // Jenkins isn't reachable from the internet, so GitHub can't push
+        // a webhook to it — instead Jenkins polls GitHub itself every 5
+        // minutes (H spreads the exact minute across jobs so they don't
+        // all hit GitHub at once) and only starts a build if HEAD moved.
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
         stage('Clean previous reports') {
             steps {
