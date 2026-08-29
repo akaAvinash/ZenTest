@@ -1,2 +1,2 @@
-FRONTEND_URL = "http://127.0.0.1:5500"
+FRONTEND_URL = "http://127.0.0.1:8000"
 API_URL = "http://127.0.0.1:8000"

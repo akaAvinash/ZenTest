@@ -1,6 +1,6 @@
-const API_BASE = window.location.hostname
-  ? `${window.location.protocol}//${window.location.hostname}:8000`
-  : "http://127.0.0.1:8000";
+// The frontend is served by the same FastAPI app as the API, so requests
+// are always same-origin — no separate host/port needed.
+const API_BASE = "";
 
 const productsBody = document.getElementById("productsBody");
 const cartBody = document.getElementById("cartBody");
@@ -38,7 +38,7 @@ async function apiFetch(path, options) {
 
 async function checkApiHealth() {
   try {
-    await apiFetch("/");
+    await apiFetch("/api/health");
     apiDot.className = "dot online";
     apiStatusText.textContent = "API online";
   } catch (err) {

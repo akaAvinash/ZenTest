@@ -1,8 +1,13 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .database import get_connection, init_db
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
 app = FastAPI(
@@ -34,8 +39,8 @@ class AddToCartRequest(BaseModel):
     quantity: int = Field(..., gt=0)
 
 # Health Check
-@app.get("/")
-def root():
+@app.get("/api/health")
+def health():
     return {
         "message": "Inventory & Cart API is running"
     }
@@ -347,3 +352,7 @@ def clear_cart():
     conn.close()
 
     return {"message": "Cart Cleared Successfully."}
+
+# Serve the static frontend. Registered last so it never shadows the /api/*
+# routes above — this mount is a catch-all for everything else.
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

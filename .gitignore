@@ -34,3 +34,8 @@ htmlcov/
 # Generated docs / reports
 TESTING.md
 *.pdf
+
+# reports
+reports/
+*.html
+*.png
